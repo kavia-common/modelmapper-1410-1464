@@ -1,4 +1,4 @@
-﻿﻿//
+//
 // API client for ModelMapper Frontend, handling JWT auth, base URL, and endpoints
 // NOTE: In test/demo mode, fetch is intercepted by src/mocks/browser.js to return static data.
 // Do not rely on these responses for production behavior.

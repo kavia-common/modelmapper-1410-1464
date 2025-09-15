@@ -8,11 +8,37 @@ import ServiceModelEditor from "../views/ServiceModelEditor";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 
-// TEST-ONLY: Authentication is disabled below. ProtectedRoute bypasses all checks.
-// Do NOT ship this in production.
-function ProtectedRoute({ children /*, roles*/ }) {
-  // const { isAuthenticated, hasRole } = useContext(AuthContext);
-  // Bypass all authentication/role checks for testing:
+// Compute env flags once
+const AUTH_ENABLED =
+  typeof process !== "undefined" &&
+  process.env &&
+  String(process.env.REACT_APP_ENABLE_AUTH || "").toLowerCase() === "true";
+
+/**
+ * ProtectedRoute enforces authentication and optional role checks only if
+ * REACT_APP_ENABLE_AUTH=true. When disabled, it simply renders children.
+ */
+function ProtectedRoute({ children, roles }) {
+  const { isAuthenticated, hasRole } = useContext(AuthContext);
+
+  if (!AUTH_ENABLED) {
+    // Auth enforcement disabled by environment; allow access
+    return children;
+  }
+
+  // Enforce authentication
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Enforce role checks when provided
+  if (roles && Array.isArray(roles) && roles.length > 0) {
+    const ok = roles.some((r) => hasRole && hasRole(r));
+    if (!ok) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  }
+
   return children;
 }
 
