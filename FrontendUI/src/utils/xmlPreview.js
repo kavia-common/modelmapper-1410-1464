@@ -2,38 +2,42 @@ import nunjucks from "nunjucks";
 
 /**
  * Initialize a Nunjucks environment suitable for client-side previews.
- * - Allowed constructs (Jinja/Nunjucks):
- *   {{ ... }} for expressions/printing (e.g., {{ value }}, {{ model.serviceId }})
- *   {% if ... %} ... {% endif %} for conditionals
- *   {% for x in ... %} ... {% endfor %} for loops
- * - Context: each template receives { value, model } where:
- *     value = data resolved at the mapping path (may be primitive/object/array)
- *     model = full JSON model object
- * - Security: autoescape is disabled to emit raw XML fragments. Do not expose untrusted inputs here.
- * - Undefined handling: throwOnUndefined=false to avoid hard errors; preview will report exceptions per path.
+ * We avoid custom loaders because renderString does not require one, and
+ * nunjucks.TemplateLoader is not part of the browser bundle. Using it
+ * causes runtime errors and prevents preview rendering.
  */
-const env = new nunjucks.Environment(
-  new nunjucks.TemplateLoader(), // default in-browser loader for renderString
-  {
-    autoescape: false, // XML fragments shouldn't be HTML-escaped for this preview
+let env;
+/* Create a resilient environment for browser use */
+try {
+  env = new nunjucks.Environment(undefined, {
+    autoescape: false, // emit raw XML fragments
     throwOnUndefined: false,
     trimBlocks: true,
     lstripBlocks: true,
-  }
-);
+  });
+} catch (e) {
+  // Fallback minimal shim: expose a renderString that throws a readable error
+  env = {
+    renderString(_tpl) {
+      throw new Error(
+        "Nunjucks environment failed to initialize. Check bundling and imports."
+      );
+    },
+  };
+}
 
 // PUBLIC_INTERFACE
 export function renderXmlPreview({ model, mappings }) {
   /** Render XML preview by applying per-path templates against the model.
    * Returns:
    * {
-   *   xml: string,                  // concatenated XML fragments (one per path with a template)
+   *   xml: string,
    *   errors: Array<{ path, message }>
    * }
    *
    * Rules:
    * - For each mapping entry:
-   *     - If object shape and has template: render with context { value: valueAtPath, model }
+   *     - If object shape and has template: render with context { value, model }
    *     - If legacy array-only mapping: skip for XML preview (no template)
    * - If the path points to an array:
    *     - The template receives 'value' as the entire array. Authors should loop in template.
@@ -45,19 +49,19 @@ export function renderXmlPreview({ model, mappings }) {
 
   if (!model || typeof model !== "object" || !mappings || typeof mappings !== "object") {
     return { xml: "", errors: [{ path: "*", message: "Model or mappings missing/invalid." }] };
-    }
+  }
 
   const resolvePath = (obj, path) => {
     // Supports dotted paths and [] notation to indicate arrays (we do not expand [] here)
     // Example: endpoints[].device or qos.policy
     if (!path) return obj;
-    const tokens = path.split("."); // split at dots
+    const tokens = path.split(".");
     let cur = obj;
     for (let token of tokens) {
       if (token.endsWith("[]")) {
         const base = token.slice(0, -2);
         cur = cur?.[base];
-        // If array notation used but author expected element; we keep the array as value so template can loop.
+        // keep arrays intact so templates can loop
         continue;
       }
       cur = cur?.[token];
@@ -66,12 +70,10 @@ export function renderXmlPreview({ model, mappings }) {
   };
 
   Object.entries(mappings).forEach(([path, val]) => {
-    // normalize to object form if array (legacy)
     const entry = Array.isArray(val) ? { xmlParams: val } : (val || {});
     const template = typeof entry.template === "string" ? entry.template : "";
-    if (!template.trim()) {
-      // nothing to render for this path
-      return;
+    if (!template || !template.trim()) {
+      return; // nothing to render for this path
     }
 
     const value = resolvePath(model, path);
