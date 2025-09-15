@@ -7,7 +7,8 @@ describe("Auth and Navigation", () => {
 
     cy.get("input").first().type("admin");
     cy.get('input[type="password"]').type("password");
-    cy.findByRole("button", { name: /login/i }).click();
+    // Click the Login form's submit button explicitly to avoid ambiguity with Navbar Login button
+    cy.get('form button[type="submit"]').click();
 
     // After login should land on root mapping studio
     cy.contains(/mapping studio/i, { timeout: 10000 }).should("exist");
