@@ -19,6 +19,8 @@ export default function DragDropMapping({
   const [filter, setFilter] = useState("");
   const [feedback, setFeedback] = useState(null);
   const dragItemRef = useRef(null);
+  const [activeOption, setActiveOption] = useState(null); // currently focused option for aria-selected
+  const [grabbedItem, setGrabbedItem] = useState(null); // track grabbed state for aria-grabbed
 
   const filteredModels = useMemo(() => {
     const f = filter.toLowerCase();
@@ -35,6 +37,7 @@ export default function DragDropMapping({
   const onDragStart = (e, item) => {
     if (disabled) return;
     dragItemRef.current = item;
+    setGrabbedItem(item);
     e.dataTransfer.effectAllowed = "copy";
     e.dataTransfer.setData("text/plain", item);
   };
@@ -47,12 +50,14 @@ export default function DragDropMapping({
     if (!item) return;
     if (serviceTarget.includes(item)) {
       setFeedback({ type: "warn", message: "Already added." });
+      setGrabbedItem(null);
       return;
     }
     const newList = [...serviceTarget, item];
     const v = validate(newList);
     setServiceTarget(newList);
     setFeedback(v.ok ? { type: "success", message: "Item added." } : { type: "error", message: v.message });
+    setGrabbedItem(null);
   };
 
   const onDragOver = (e) => {
@@ -98,18 +103,32 @@ export default function DragDropMapping({
             disabled={disabled}
           />
         </div>
-        <ul style={{ listStyle: "none", padding: 0, marginTop: 12, maxHeight: 300, overflow: "auto" }}>
+        <ul
+          role="listbox"
+          aria-label="Available YANG modules and submodules"
+          style={{ listStyle: "none", padding: 0, marginTop: 12, maxHeight: 300, overflow: "auto" }}
+        >
           {filteredModels.map((m) => (
             <li
               key={m}
+              role="option"
+              aria-selected={activeOption === m}
               draggable={!disabled}
               onDragStart={(e) => onDragStart(e, m)}
+              onDragEnd={() => setGrabbedItem(null)}
               tabIndex={0}
+              onFocus={() => setActiveOption(m)}
+              onMouseEnter={() => setActiveOption(m)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  if (serviceTarget.includes(m)) return;
+                  if (serviceTarget.includes(m)) {
+                    setFeedback({ type: "warn", message: "Already added." });
+                    return;
+                  }
                   const newList = [...serviceTarget, m];
+                  const v = validate(newList);
                   setServiceTarget(newList);
+                  setFeedback(v.ok ? { type: "success", message: "Item added." } : { type: "error", message: v.message });
                 }
               }}
               style={{
@@ -119,13 +138,14 @@ export default function DragDropMapping({
                 marginBottom: 6,
                 cursor: disabled ? "not-allowed" : "grab",
                 background: "var(--bg-secondary)",
+                outline: activeOption === m ? "2px solid var(--text-secondary)" : "none",
               }}
-              aria-grabbed="false"
+              aria-grabbed={grabbedItem === m}
             >
               {m}
             </li>
           ))}
-          {filteredModels.length === 0 && <li>No models</li>}
+          {filteredModels.length === 0 && <li aria-disabled="true">No models</li>}
         </ul>
       </div>
 
@@ -143,7 +163,11 @@ export default function DragDropMapping({
         }}
       >
         <strong>Mapping Target</strong>
-        <ul style={{ listStyle: "none", padding: 0, marginTop: 12, minHeight: 120 }}>
+        <ul
+          style={{ listStyle: "none", padding: 0, marginTop: 12, minHeight: 120 }}
+          aria-live="polite"
+          aria-relevant="additions removals"
+        >
           {serviceTarget.map((m) => (
             <li
               key={m}
@@ -168,10 +192,10 @@ export default function DragDropMapping({
         </ul>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={() => setServiceTarget([])} disabled={disabled}>
+          <button onClick={() => setServiceTarget([])} disabled={disabled} aria-label="Clear mapping selection">
             Clear
           </button>
-          <button onClick={commitMapping} disabled={disabled}>
+          <button onClick={commitMapping} disabled={disabled} aria-label="Map service">
             Map Service
           </button>
         </div>
@@ -179,6 +203,8 @@ export default function DragDropMapping({
         {feedback && (
           <div
             role="status"
+            aria-live="polite"
+            aria-atomic="true"
             style={{
               marginTop: 8,
               color:

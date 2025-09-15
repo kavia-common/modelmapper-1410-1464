@@ -71,6 +71,8 @@ export default function MappingStudio() {
       {status && (
         <div
           role="status"
+          aria-live="polite"
+          aria-atomic="true"
           style={{
             marginTop: 16,
             color:

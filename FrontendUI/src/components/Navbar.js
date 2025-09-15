@@ -31,6 +31,8 @@ export default function Navbar() {
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <button
           aria-label="Toggle Menu"
+          aria-expanded={open}
+          aria-controls="primary-links"
           onClick={() => setOpen((o) => !o)}
           style={{ display: "inline-flex" }}
         >
@@ -38,6 +40,7 @@ export default function Navbar() {
         </button>
         <strong>ModelMapper</strong>
         <div
+          id="primary-links"
           style={{
             display: open ? "flex" : "none",
             gap: 12,

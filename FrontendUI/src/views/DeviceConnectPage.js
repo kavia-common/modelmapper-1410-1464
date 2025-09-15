@@ -80,7 +80,7 @@ export default function DeviceConnectPage() {
             {busy ? "Connecting..." : "Connect"}
           </button>
           {err && (
-            <div role="alert" style={{ color: "#a94442" }}>
+            <div role="alert" aria-live="assertive" aria-atomic="true" style={{ color: "#a94442" }}>
               {err}
             </div>
           )}
@@ -90,10 +90,12 @@ export default function DeviceConnectPage() {
       {result && (
         <div style={{ marginTop: 24 }}>
           <h3>Device Status</h3>
-          <p>
+          <p role="status" aria-live="polite" aria-atomic="true">
             Connected: <strong>{result.connected ? "Yes" : "No"}</strong>
           </p>
-          {result.message && <p>Message: {result.message}</p>}
+          {result.message && (
+            <p role="status" aria-live="polite" aria-atomic="true">Message: {result.message}</p>
+          )}
           <h4>Retrieved YANG Models</h4>
           <ul>
             {result.yangModels?.map((m) => (

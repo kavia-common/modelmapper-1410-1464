@@ -75,7 +75,7 @@ export default function VersionControlPage() {
       </div>
 
       {msg && (
-        <div role="status" style={{ marginTop: 12 }}>
+        <div role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: 12 }}>
           {msg}
         </div>
       )}
