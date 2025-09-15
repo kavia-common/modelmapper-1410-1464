@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../services/apiClient";
+import { renderXmlPreview } from "../utils/xmlPreview";
 
 /**
  * ServiceModelEditor
@@ -281,6 +282,18 @@ export default function ServiceModelEditor() {
     </details>
   );
 
+  // Live XML preview derived state
+  const preview = useMemo(() => {
+    if (!parsed.ok) {
+      return { xml: "", errors: [{ path: "*", message: parseError || "Invalid JSON" }] };
+    }
+    try {
+      return renderXmlPreview({ model: parsed.value, mappings });
+    } catch (e) {
+      return { xml: "", errors: [{ path: "*", message: e?.message || String(e) }] };
+    }
+  }, [parsed, mappings, parseError]);
+
   return (
     <div style={{ padding: 24 }}>
       <h2>Service Model Editor</h2>
@@ -485,67 +498,113 @@ export default function ServiceModelEditor() {
               </ul>
             </div>
 
-            <div style={{ border: "1px solid var(--border-color)", borderRadius: 8, padding: 12 }}>
-              <strong>Summary</strong>
-              <p style={{ marginTop: 8 }}>
-                Total properties: <b>{jsonPaths.length}</b>
-              </p>
-              <p>
-                Mapped properties: <b>{Object.keys(mappings).length}</b>
-              </p>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ border: "1px solid var(--border-color)", borderRadius: 8, padding: 12 }}>
+                <strong>Summary</strong>
+                <p style={{ marginTop: 8 }}>
+                  Total properties: <b>{jsonPaths.length}</b>
+                </p>
+                <p>
+                  Mapped properties: <b>{Object.keys(mappings).length}</b>
+                </p>
 
-              <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={saveToBackend}>Save Model + Mappings</button>
-                <button
-                  onClick={() => {
-                    const payload = {
-                      model: parsed.ok ? parsed.value : {},
-                      mappings,
-                    };
-                    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-                      type: "application/json",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "service-model-mappings.json";
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Export JSON
-                </button>
-                <button
-                  onClick={() => {
-                    if (!window.confirm("Clear all mappings (XML params and templates)?")) return;
-                    setMappings({});
-                    setXmlParamInput({});
-                  }}
-                >
-                  Clear Mappings
-                </button>
-              </div>
-
-              <div style={{ marginTop: 16 }}>
-                <details>
-                  <summary>Preview Payload (for backend)</summary>
-                  <pre
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      background: "var(--bg-secondary)",
-                      padding: 8,
-                      borderRadius: 6,
-                      border: "1px solid var(--border-color)",
-                      fontSize: 12,
+                <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={saveToBackend}>Save Model + Mappings</button>
+                  <button
+                    onClick={() => {
+                      const payload = {
+                        model: parsed.ok ? parsed.value : {},
+                        mappings,
+                      };
+                      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                        type: "application/json",
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "service-model-mappings.json";
+                      a.click();
+                      URL.revokeObjectURL(url);
                     }}
                   >
+                    Export JSON
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!window.confirm("Clear all mappings (XML params and templates)?")) return;
+                      setMappings({});
+                      setXmlParamInput({});
+                    }}
+                  >
+                    Clear Mappings
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <details>
+                    <summary>Preview Payload (for backend)</summary>
+                    <pre
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        background: "var(--bg-secondary)",
+                        padding: 8,
+                        borderRadius: 6,
+                        border: "1px solid var(--border-color)",
+                        fontSize: 12,
+                      }}
+                    >
 {`{
   "model": ${parsed.ok ? JSON.stringify(parsed.value, null, 2) : "{}"},
   "mappings": ${JSON.stringify(mappings, null, 2)}
 }`}
-                  </pre>
-                </details>
+                    </pre>
+                  </details>
+                </div>
+              </div>
+
+              {/* XML Preview Panel */}
+              <div style={{ border: "1px solid var(--border-color)", borderRadius: 8, padding: 12 }}>
+                <strong>XML Preview</strong>
+                <p style={{ marginTop: 6, fontSize: 12 }}>
+                  Live preview of templates rendered with current JSON. One fragment per path with a template.
+                </p>
+
+                {/* Error list */}
+                {preview.errors && preview.errors.length > 0 && (
+                  <div role="alert" style={{ marginTop: 8, color: "#a94442" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Errors:</div>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {preview.errors.map((e, idx) => (
+                        <li key={`${e.path}-${idx}`}>
+                          <code style={{ fontSize: 12 }}>{e.path}</code>: {e.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div style={{ marginTop: 8 }}>
+                  <details open>
+                    <summary>Rendered XML</summary>
+                    <pre
+                      aria-label="XML preview output"
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        background: "var(--bg-secondary)",
+                        padding: 8,
+                        borderRadius: 6,
+                        border: "1px solid var(--border-color)",
+                        fontSize: 12,
+                        maxHeight: 300,
+                        overflow: "auto",
+                      }}
+                    >
+                      {preview.xml || "<empty>"}
+                    </pre>
+                  </details>
+                </div>
               </div>
             </div>
           </div>
