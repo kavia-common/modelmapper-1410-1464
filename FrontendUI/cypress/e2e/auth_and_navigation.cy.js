@@ -1,10 +1,11 @@
 describe("Auth and Navigation", () => {
   it("logs in and navigates to mapping studio", () => {
     cy.visit("/login");
-    cy.findByText(/login/i);
+    // Use a specific role-based query to avoid ambiguous matches on "login"
+    cy.findByRole("heading", { name: /login/i }).should("exist");
     cy.get('input[placeholder=""]').should("have.length.at.least", 0); // noop to ensure page loaded
 
-    cy.get('input').first().type("admin");
+    cy.get("input").first().type("admin");
     cy.get('input[type="password"]').type("password");
     cy.findByRole("button", { name: /login/i }).click();
 
