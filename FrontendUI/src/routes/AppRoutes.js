@@ -4,6 +4,7 @@ import LoginPage from "../views/LoginPage";
 import MappingStudio from "../views/MappingStudio";
 import DeviceConnectPage from "../views/DeviceConnectPage";
 import VersionControlPage from "../views/VersionControlPage";
+import ServiceModelEditor from "../views/ServiceModelEditor";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 
@@ -53,6 +54,14 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute roles={["admin", "user"]}>
               <VersionControlPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/service-model"
+          element={
+            <ProtectedRoute>
+              <ServiceModelEditor />
             </ProtectedRoute>
           }
         />

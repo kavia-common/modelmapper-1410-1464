@@ -45,6 +45,7 @@ export default function Navbar() {
           }}
         >
           <Link to="/">Mapping Studio</Link>
+          <Link to="/service-model">Service Model Editor</Link>
           <Link to="/connect">Connect Device</Link>
           <Link to="/versions">Version Control</Link>
         </div>
