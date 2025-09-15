@@ -5,7 +5,11 @@
 //
 // Service Model Editor integration:
 // - getServiceModel(id): GET /api/service-models/:id
-// - saveServiceModel({ id?, model, mappings }): POST (create) or PUT (update)
+ // - saveServiceModel({ id?, model, mappings }): POST (create) or PUT (update)
+ //   Note: mappings now supports two shapes for demo:
+ //     1) legacy: { "json.path": ["XML_PARAM", ...] }
+ //     2) advanced: { "json.path": { xmlParams?: ["..."], template?: "<jinja-like template>" } }
+ //   The frontend will send whatever structure it has; mocks accept any JSON.
 // - deleteServiceModel(id): DELETE /api/service-models/:id
 //
 
