@@ -171,14 +171,50 @@ export default function ServiceModelEditor() {
     setStatus("Loading model...");
     try {
       const res = await apiClient.getServiceModel(modelId);
-      setJsonText(JSON.stringify(res.model || {}, null, 2));
-      setMappings(res.mappings || {});
+      // Only update local editor state after a successful fetch to avoid partial overwrites
+      const newModel = res && typeof res.model === "object" ? res.model : {};
+      const newMappings = res && typeof res.mappings === "object" ? res.mappings : {};
+      setJsonText(JSON.stringify(newModel, null, 2));
+      setMappings(newMappings);
       setStatus(`Loaded model ${res.id}`);
     } catch (e) {
+      // Keep current editor content as-is on failure
       setStatus(e.status === 404 ? "Model not found" : e.message || "Failed to load");
     } finally {
       setBusy(false);
     }
+  };
+
+  // Validate mapping object shape and template syntax (basic)
+  const validateMappings = (mappingsObj) => {
+    const errors = [];
+    if (!mappingsObj || typeof mappingsObj !== "object") return ["Mappings must be an object."];
+    const pathRegex = /^[A-Za-z0-9_\-$]+(\[\])?(?:\.[A-Za-z0-9_\-$]+(\[\])?)*$/;
+    for (const [path, entry] of Object.entries(mappingsObj)) {
+      if (!pathRegex.test(path)) {
+        errors.push(`Invalid path syntax: ${path}`);
+      }
+      // normalize to object form for validation but do not mutate state here
+      const normalized = Array.isArray(entry) ? { xmlParams: entry } : (entry || {});
+      if (normalized.xmlParams && !Array.isArray(normalized.xmlParams)) {
+        errors.push(`xmlParams for "${path}" must be an array if provided`);
+      }
+      const tmpl = typeof normalized.template === "string" ? normalized.template : "";
+      // quick unbalanced braces/brackets check for the template to catch trivial mistakes
+      if (tmpl) {
+        const openTagCount = (tmpl.match(/{%/g) || []).length;
+        const closeTagCount = (tmpl.match(/%}/g) || []).length;
+        const openExprCount = (tmpl.match(/{{/g) || []).length;
+        const closeExprCount = (tmpl.match(/}}/g) || []).length;
+        if (openTagCount !== closeTagCount) {
+          errors.push(`Template tag count mismatch in path "${path}" ({%/%})`);
+        }
+        if (openExprCount !== closeExprCount) {
+          errors.push(`Template expression count mismatch in path "${path}" ({{/}})`);
+        }
+      }
+    }
+    return errors;
   };
 
   const saveToBackend = async () => {
@@ -186,6 +222,14 @@ export default function ServiceModelEditor() {
       setStatus("Fix JSON errors before saving.");
       return;
     }
+
+    // Validate mappings
+    const mapErrors = validateMappings(mappings);
+    if (mapErrors.length > 0) {
+      setStatus(`Fix mapping errors before saving:\n- ${mapErrors.join("\n- ")}`);
+      return;
+    }
+
     setBusy(true);
     setStatus(modelId ? "Saving (update)..." : "Saving (create)...");
     try {
@@ -194,6 +238,7 @@ export default function ServiceModelEditor() {
       if (!modelId) setModelId(res.id);
       setStatus(`Saved model ${res.id} at ${res.updatedAt}`);
     } catch (e) {
+      // Do not overwrite current editor state on failure; show error only
       setStatus(e.message || "Save failed");
     } finally {
       setBusy(false);
@@ -507,9 +552,31 @@ export default function ServiceModelEditor() {
                 <p>
                   Mapped properties: <b>{Object.keys(mappings).length}</b>
                 </p>
+                {(() => {
+                  const errs = validateMappings(mappings);
+                  return errs.length > 0 ? (
+                    <div role="alert" style={{ color: "#a94442", marginTop: 8 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Mapping validation errors:</div>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {errs.map((msg, idx) => (
+                          <li key={idx}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div role="status" style={{ color: "#3c763d", marginTop: 8 }}>
+                      Mappings look valid.
+                    </div>
+                  );
+                })()}
 
                 <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button onClick={saveToBackend}>Save Model + Mappings</button>
+                  <button
+                    onClick={saveToBackend}
+                    title="Save model and mappings to backend"
+                  >
+                    Save Model + Mappings
+                  </button>
                   <button
                     onClick={() => {
                       const payload = {
