@@ -14,13 +14,12 @@ export default [
         document: true,
         window: true,
         test: true,
-        expect: true
+        expect: true,
+        cy: true
       }
     },
     rules: {
-
-     'no-unused-vars': ['error', { varsIgnorePattern: 'React|App' }]
-
+      'no-unused-vars': ['error', { varsIgnorePattern: 'React|App' }]
     }
   },
   pluginJs.configs.recommended,

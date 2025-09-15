@@ -1,82 +1,52 @@
-# Lightweight React Template for KAVIA
+# ModelMapper Frontend UI
 
-This project provides a minimal React template with a clean, modern UI and minimal dependencies.
+React-based visual design studio for mapping network services to vendor-specific YANG models.
 
-## Features
+## Key Features
 
-- **Lightweight**: No heavy UI frameworks - uses only vanilla CSS and React
-- **Modern UI**: Clean, responsive design with KAVIA brand styling
-- **Fast**: Minimal dependencies for quick loading times
-- **Simple**: Easy to understand and modify
+- Visual Service-to-YANG Model Mapping with drag-and-drop (supports submodules) and real-time feedback
+- Dynamic Device Connection to retrieve vendor YANG models (Cisco, Huawei, Nokia)
+- Version Control (view history, revert, manage)
+- Authentication with JWT and Role-Based Access Control (RBAC)
+- Responsive and accessible UI, extensible vendor support
+- API integration per provided OpenAPI spec
+- Cypress end-to-end test setup with examples
 
-## Getting Started
+## Quick Start
 
-In the project directory, you can run:
+- Copy `.env.example` to `.env` and set REACT_APP_API_BASE_URL to your backend API base URL.
+- Install dependencies: `npm install`
+- Run dev server: `npm start` (http://localhost:3000)
+- Run unit tests: `npm test`
+- Run Cypress tests (UI): `npm run cypress:open`
+- Run Cypress in headless: `npm run cypress:run`
 
-### `npm start`
+## Environment
 
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- REACT_APP_API_BASE_URL: Backend base URL (e.g., https://api.modelmapper.example.com)
 
-### `npm test`
+## Structure
 
-Launches the test runner in interactive watch mode.
+- `src/services/apiClient.js`: API client for all endpoints (/api/map-service, /api/connect-device, /api/version-control, /api/auth/*)
+- `src/context/AuthContext.js`: JWT handling, session, RBAC
+- `src/routes/AppRoutes.js`: Router and protected routes
+- `src/views/*`: Pages (Login, MappingStudio, DeviceConnectPage, VersionControlPage)
+- `src/components/*`: UI components (Navbar, VendorSelector, DragDropMapping)
+- `src/hooks/useTheme.js`: Theme management
+- `cypress/*`: Cypress config, support, and example tests
 
-### `npm run build`
+## Accessibility and Responsiveness
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- All interactive controls are keyboard accessible (Enter to add in drag-and-drop list).
+- Uses CSS variables and semantic markup for better accessibility and theming.
 
-## Customization
+## Extensibility
 
-### Colors
+- Add vendors via VendorSelector or dynamic backend-fed lists.
+- Mapping logic abstracts list of YANG modules; can be fed from `/api/connect-device` results.
 
-The main brand colors are defined as CSS variables in `src/App.css`:
+## Security
 
-```css
-:root {
-  --kavia-orange: #E87A41;
-  --kavia-dark: #1A1A1A;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
-}
-```
+- JWT included in Authorization header for authenticated endpoints.
+- On 401, user session is cleared and UI can redirect to login.
 
-### Components
-
-This template uses pure HTML/CSS components instead of a UI framework. You can find component styles in `src/App.css`. 
-
-Common components include:
-- Buttons (`.btn`, `.btn-large`)
-- Container (`.container`)
-- Navigation (`.navbar`)
-- Typography (`.title`, `.subtitle`, `.description`)
-
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
