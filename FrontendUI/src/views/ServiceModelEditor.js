@@ -6,6 +6,7 @@ import { apiClient } from "../services/apiClient";
  * - Allows user to author or import a vendor-agnostic service model in JSON
  * - Validates and pretty-prints JSON
  * - Lists JSON properties and enables mapping each to one or more XML parameter names
+ * - NEW: Per-path Jinja/Nunjucks template textarea with docs/tooltips
  * - Persists to backend via REST API (mocks available in test/demo)
  *
  * Backend integration details:
@@ -26,12 +27,15 @@ function safeParseJson(text) {
   }
 }
 
+/**
+ * Enumerate all JSON property paths.
+ * Object: a.b.c
+ * Array:  a[].b   (we fold arrays using [] to indicate repetition)
+ */
 function getAllJsonPaths(obj, prefix = "") {
   const paths = [];
   if (Array.isArray(obj)) {
-    // For arrays, we record the property as the array itself (no index expansion for mapping keys)
-    paths.push(prefix);
-    // Optionally traverse first item if it's an object; keep it simple here
+    if (prefix) paths.push(prefix);
     if (obj.length > 0 && typeof obj[0] === "object" && obj[0] !== null) {
       const nested = getAllJsonPaths(obj[0], prefix ? `${prefix}[]` : "[]");
       paths.push(...nested);
@@ -49,7 +53,6 @@ function getAllJsonPaths(obj, prefix = "") {
   } else {
     if (prefix) paths.push(prefix);
   }
-  // Deduplicate
   return Array.from(new Set(paths.filter(Boolean)));
 }
 
@@ -78,10 +81,61 @@ export default function ServiceModelEditor() {
   const [modelId, setModelId] = useState("svc-001");
   const [jsonText, setJsonText] = useState(JSON.stringify(SAMPLE_MODEL, null, 2));
   const [parseError, setParseError] = useState("");
+  // mappings supports legacy arrays and advanced objects with { xmlParams?:[], template?:string }
   const [mappings, setMappings] = useState({});
   const [xmlParamInput, setXmlParamInput] = useState({}); // temp inputs per key
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+
+  // Derive a normalized view to show both xml params and template seamlessly
+  const getXmlParamsFor = (path) => {
+    const m = mappings[path];
+    if (!m) return [];
+    if (Array.isArray(m)) return m;
+    if (m && Array.isArray(m.xmlParams)) return m.xmlParams;
+    return [];
+  };
+  const getTemplateFor = (path) => {
+    const m = mappings[path];
+    if (!m || Array.isArray(m)) return "";
+    return m.template || "";
+  };
+
+  const setXmlParamsFor = (path, newParams) => {
+    setMappings((prev) => {
+      const current = prev[path];
+      if (Array.isArray(current)) {
+        // upgrade to object form
+        return { ...prev, [path]: { xmlParams: newParams } };
+      }
+      const nextValue = { ...(current || {}), xmlParams: newParams };
+      // cleanup if both empty
+      if ((!nextValue.xmlParams || nextValue.xmlParams.length === 0) && !nextValue.template) {
+        const cp = { ...prev };
+        delete cp[path];
+        return cp;
+      }
+      return { ...prev, [path]: nextValue };
+    });
+  };
+
+  const setTemplateFor = (path, tmpl) => {
+    setMappings((prev) => {
+      const current = prev[path];
+      if (Array.isArray(current)) {
+        // upgrade to object form, keep array as xmlParams alongside template
+        return { ...prev, [path]: { xmlParams: current, template: tmpl } };
+      }
+      const nextValue = { ...(current || {}), template: tmpl };
+      // cleanup if both empty
+      if ((!nextValue.xmlParams || nextValue.xmlParams.length === 0) && !nextValue.template) {
+        const cp = { ...prev };
+        delete cp[path];
+        return cp;
+      }
+      return { ...prev, [path]: nextValue };
+    });
+  };
 
   const parsed = useMemo(() => safeParseJson(jsonText), [jsonText]);
   const jsonPaths = useMemo(() => {
@@ -127,7 +181,6 @@ export default function ServiceModelEditor() {
   };
 
   const saveToBackend = async () => {
-    // Replace previous placeholder with real API calls
     if (!parsed.ok) {
       setStatus("Fix JSON errors before saving.");
       return;
@@ -157,7 +210,6 @@ export default function ServiceModelEditor() {
     try {
       await apiClient.deleteServiceModel(modelId);
       setStatus(`Deleted model ${modelId}`);
-      // Reset editor to sample after delete
       setJsonText(JSON.stringify(SAMPLE_MODEL, null, 2));
       setMappings({});
       setXmlParamInput({});
@@ -171,30 +223,63 @@ export default function ServiceModelEditor() {
   const handleAddMapping = (path) => {
     const entry = (xmlParamInput[path] || "").trim();
     if (!entry) return;
-    const existing = mappings[path] || [];
+    const existing = getXmlParamsFor(path);
     const parts = entry.split(",").map((s) => s.trim()).filter(Boolean);
     const newList = Array.from(new Set([...existing, ...parts]));
-    setMappings((prev) => ({ ...prev, [path]: newList }));
+    setXmlParamsFor(path, newList);
     setXmlParamInput((prev) => ({ ...prev, [path]: "" }));
   };
 
   const handleRemoveMapping = (path, value) => {
-    const list = mappings[path] || [];
+    const list = getXmlParamsFor(path);
     const newList = list.filter((v) => v !== value);
-    setMappings((prev) => {
-      const next = { ...prev, [path]: newList };
-      if (next[path].length === 0) delete next[path];
-      return next;
-    });
+    setXmlParamsFor(path, newList);
   };
 
   const handleImportFile = async (file) => {
     if (!file) return;
     const text = await file.text();
     setJsonText(text);
-    // Note: We do not auto-clear mappings on import, but we could:
-    // setMappings({});
   };
+
+  const hintBox = (
+    <details style={{ marginTop: 8 }}>
+      <summary>Jinja/Nunjucks Template Help</summary>
+      <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+        <p>
+          Use Jinja/Nunjucks syntax to transform this JSON value into XML fragments or strings.
+          The current JSON value is available as <code>value</code>, and the full model as{" "}
+          <code>model</code>.
+        </p>
+        <ul>
+          <li>
+            Output: Use{" "}
+            <code>{String.raw`{{ value }}`}</code> to print.
+          </li>
+          <li>
+            Conditionals:{" "}
+            <code>{String.raw`{% if value %}...{% endif %}`}</code>
+          </li>
+          <li>
+            Loops (arrays):{" "}
+            <code>{String.raw`{% for item in value %}...{% endfor %}`}</code>
+          </li>
+          <li>
+            Example (simple XML):
+            <pre style={{ whiteSpace: "pre-wrap", background: "var(--bg-secondary)", padding: 8, borderRadius: 6 }}>
+              {String.raw`<param name="device">{{ value }}</param>`}
+            </pre>
+          </li>
+          <li>
+            Example (array to XML list):
+            <pre style={{ whiteSpace: "pre-wrap", background: "var(--bg-secondary)", padding: 8, borderRadius: 6 }}>
+              {String.raw`{% for ep in value %}<endpoint id="{{ ep.id }}"><if>{{ ep.interface }}</if></endpoint>{% endfor %}`}
+            </pre>
+          </li>
+        </ul>
+      </div>
+    </details>
+  );
 
   return (
     <div style={{ padding: 24 }}>
@@ -251,7 +336,6 @@ export default function ServiceModelEditor() {
           value={jsonText}
           onChange={(e) => {
             setJsonText(e.target.value);
-            // live check (non-blocking)
             const res = safeParseJson(e.target.value);
             setParseError(res.ok ? "" : res.error || "Invalid JSON");
           }}
@@ -266,7 +350,7 @@ export default function ServiceModelEditor() {
       </section>
 
       <section aria-labelledby="mapping-ui-title" style={{ marginTop: 24 }}>
-        <h3 id="mapping-ui-title">Map JSON Properties to XML Parameters</h3>
+        <h3 id="mapping-ui-title">Map JSON Properties to XML Parameters and Templates</h3>
         {!parsed.ok ? (
           <p role="alert" style={{ color: "#a94442" }}>
             Fix JSON errors before mapping.
@@ -284,74 +368,120 @@ export default function ServiceModelEditor() {
           >
             <div style={{ border: "1px solid var(--border-color)", borderRadius: 8, padding: 12 }}>
               <strong>JSON Properties</strong>
-              <ul style={{ listStyle: "none", padding: 0, marginTop: 8, maxHeight: 360, overflow: "auto" }}>
-                {jsonPaths.map((p) => (
-                  <li
-                    key={p}
-                    style={{
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 6,
-                      padding: "6px 8px",
-                      marginBottom: 6,
-                      background: "var(--bg-secondary)",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                      <code style={{ fontSize: 12 }}>{p}</code>
-                    </div>
-                    <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                      <input
-                        placeholder="Add XML param(s), comma-separated"
-                        value={xmlParamInput[p] || ""}
-                        onChange={(e) =>
-                          setXmlParamInput((prev) => ({
-                            ...prev,
-                            [p]: e.target.value,
-                          }))
-                        }
-                        style={{ flex: 1 }}
-                      />
-                      <button onClick={() => handleAddMapping(p)}>Add</button>
-                    </div>
-                    {Array.isArray(mappings[p]) && mappings[p].length > 0 && (
-                      <div style={{ marginTop: 6 }}>
-                        <div style={{ fontSize: 12, marginBottom: 4 }}>Mapped XML params:</div>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          {mappings[p].map((m) => (
-                            <span
-                              key={m}
-                              style={{
-                                border: "1px solid var(--border-color)",
-                                borderRadius: 999,
-                                padding: "2px 8px",
-                                fontSize: 12,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              {m}
-                              <button
-                                onClick={() => handleRemoveMapping(p, m)}
-                                aria-label={`Remove mapping ${m} from ${p}`}
-                                title="Remove"
+              <p style={{ marginTop: 6, fontSize: 12 }}>
+                For each path, optionally add XML parameter names (legacy) and/or a Jinja/Nunjucks template.
+              </p>
+              <ul style={{ listStyle: "none", padding: 0, marginTop: 8, maxHeight: 420, overflow: "auto" }}>
+                {jsonPaths.map((p) => {
+                  const params = getXmlParamsFor(p);
+                  const tmpl = getTemplateFor(p);
+                  return (
+                    <li
+                      key={p}
+                      style={{
+                        border: "1px solid var(--border-color)",
+                        borderRadius: 6,
+                        padding: "8px 10px",
+                        marginBottom: 8,
+                        background: "var(--bg-secondary)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                        <code style={{ fontSize: 12 }}>{p}</code>
+                        <span title="Path in the JSON model">
+                          ℹ️
+                        </span>
+                      </div>
+
+                      {/* XML Params (legacy) */}
+                      <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                        <input
+                          placeholder="Add XML param(s), comma-separated"
+                          value={xmlParamInput[p] || ""}
+                          onChange={(e) =>
+                            setXmlParamInput((prev) => ({
+                              ...prev,
+                              [p]: e.target.value,
+                            }))
+                          }
+                          style={{ flex: 1 }}
+                          aria-label={`XML Params input for ${p}`}
+                          title="Enter comma-separated XML parameter names for this path"
+                        />
+                        <button onClick={() => handleAddMapping(p)} title="Add XML params">Add</button>
+                      </div>
+                      {Array.isArray(params) && params.length > 0 && (
+                        <div style={{ marginTop: 6 }}>
+                          <div style={{ fontSize: 12, marginBottom: 4 }}>Mapped XML params:</div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {params.map((m) => (
+                              <span
+                                key={m}
                                 style={{
-                                  background: "transparent",
-                                  color: "inherit",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  padding: 0,
+                                  border: "1px solid var(--border-color)",
+                                  borderRadius: 999,
+                                  padding: "2px 8px",
+                                  fontSize: 12,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
                                 }}
                               >
-                                ✕
-                              </button>
-                            </span>
-                          ))}
+                                {m}
+                                <button
+                                  onClick={() => handleRemoveMapping(p, m)}
+                                  aria-label={`Remove mapping ${m} from ${p}`}
+                                  title="Remove"
+                                  style={{
+                                    background: "transparent",
+                                    color: "inherit",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                          </div>
                         </div>
+                      )}
+
+                      {/* Jinja/Nunjucks Template Editor */}
+                      <div style={{ marginTop: 10 }}>
+                        <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 12, fontWeight: 600 }}>Template (Jinja/Nunjucks)</span>
+                          <span
+                            title="Use {{ value }} to print this path's current value. You can also reference the full model via 'model'."
+                            aria-label="Template help tooltip"
+                            style={{ cursor: "help" }}
+                          >
+                            ❔
+                          </span>
+                        </label>
+                        <textarea
+                          value={tmpl}
+                          onChange={(e) => setTemplateFor(p, e.target.value)}
+                          placeholder='Example: <param name="device">{{ value }}</param>'
+                          aria-label={`Template for ${p}`}
+                          style={{
+                            width: "100%",
+                            minHeight: 80,
+                            fontFamily: "monospace",
+                            fontSize: 12,
+                            marginTop: 6,
+                            border: "1px solid var(--border-color)",
+                            borderRadius: 6,
+                            background: "var(--bg-primary)",
+                            color: "var(--text-primary)",
+                          }}
+                        />
+                        {hintBox}
                       </div>
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -364,11 +494,10 @@ export default function ServiceModelEditor() {
                 Mapped properties: <b>{Object.keys(mappings).length}</b>
               </p>
 
-              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={saveToBackend}>Save Model + Mappings</button>
                 <button
                   onClick={() => {
-                    // Export mappings as JSON file
                     const payload = {
                       model: parsed.ok ? parsed.value : {},
                       mappings,
@@ -388,8 +517,7 @@ export default function ServiceModelEditor() {
                 </button>
                 <button
                   onClick={() => {
-                    // Reset mappings only
-                    if (!window.confirm("Clear all mappings?")) return;
+                    if (!window.confirm("Clear all mappings (XML params and templates)?")) return;
                     setMappings({});
                     setXmlParamInput({});
                   }}
