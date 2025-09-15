@@ -2,7 +2,15 @@ import nunjucks from "nunjucks";
 
 /**
  * Initialize a Nunjucks environment suitable for client-side previews.
- * The environment is configured to escape by default and throw on undefined if desired.
+ * - Allowed constructs (Jinja/Nunjucks):
+ *   {{ ... }} for expressions/printing (e.g., {{ value }}, {{ model.serviceId }})
+ *   {% if ... %} ... {% endif %} for conditionals
+ *   {% for x in ... %} ... {% endfor %} for loops
+ * - Context: each template receives { value, model } where:
+ *     value = data resolved at the mapping path (may be primitive/object/array)
+ *     model = full JSON model object
+ * - Security: autoescape is disabled to emit raw XML fragments. Do not expose untrusted inputs here.
+ * - Undefined handling: throwOnUndefined=false to avoid hard errors; preview will report exceptions per path.
  */
 const env = new nunjucks.Environment(
   new nunjucks.TemplateLoader(), // default in-browser loader for renderString

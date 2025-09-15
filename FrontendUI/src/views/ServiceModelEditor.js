@@ -8,6 +8,11 @@ import { renderXmlPreview } from "../utils/xmlPreview";
  * - Validates and pretty-prints JSON
  * - Lists JSON properties and enables mapping each to one or more XML parameter names
  * - NEW: Per-path Jinja/Nunjucks template textarea with docs/tooltips
+ *   Allowed syntax: {{ ... }}, {% if ... %}...{% endif %}, {% for ... %}...{% endfor %}
+ *   Context per template: { value, model }
+ *   - value is resolved by dotted path; tokens ending with [] yield arrays, which you should loop over.
+ *   - The XML Preview concatenates outputs from all paths that provide a non-empty template.
+ *   - Legacy array-only mappings (xmlParams) are preserved but not rendered in the preview.
  * - Persists to backend via REST API (mocks available in test/demo)
  *
  * Backend integration details:
