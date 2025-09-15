@@ -1,7 +1,12 @@
-﻿//
+﻿﻿//
 // API client for ModelMapper Frontend, handling JWT auth, base URL, and endpoints
 // NOTE: In test/demo mode, fetch is intercepted by src/mocks/browser.js to return static data.
 // Do not rely on these responses for production behavior.
+//
+// Service Model Editor integration:
+// - getServiceModel(id): GET /api/service-models/:id
+// - saveServiceModel({ id?, model, mappings }): POST (create) or PUT (update)
+// - deleteServiceModel(id): DELETE /api/service-models/:id
 //
 
 // PUBLIC_INTERFACE
@@ -109,6 +114,51 @@ export class ApiClient {
     return this.request("/api/version-control", {
       method: "POST",
       body: { deviceId, action, targetVersion },
+    });
+  }
+
+  // PUBLIC_INTERFACE
+  async getServiceModel(id) {
+    /** Retrieve a saved service model by ID.
+     * Request: GET /api/service-models/:id
+     * Response example:
+     * { id: "svc-001", model: {...}, mappings: {...}, updatedAt: "2025-01-01T00:00:00Z" }
+     */
+    if (!id) throw new Error("id is required");
+    return this.request(`/api/service-models/${encodeURIComponent(id)}`, {
+      method: "GET",
+    });
+  }
+
+  // PUBLIC_INTERFACE
+  async saveServiceModel({ id, model, mappings }) {
+    /** Create or update a service model.
+     * Create (POST): /api/service-models  body: { model, mappings }
+     * Update (PUT): /api/service-models/:id  body: { model, mappings }
+     * Returns: { id, model, mappings, updatedAt }
+     */
+    const body = { model, mappings };
+    if (id) {
+      return this.request(`/api/service-models/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body,
+      });
+    }
+    return this.request("/api/service-models", {
+      method: "POST",
+      body,
+    });
+  }
+
+  // PUBLIC_INTERFACE
+  async deleteServiceModel(id) {
+    /** Delete a service model by ID.
+     * DELETE /api/service-models/:id
+     * Returns: { id, deleted: true }
+     */
+    if (!id) throw new Error("id is required");
+    return this.request(`/api/service-models/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   }
 }

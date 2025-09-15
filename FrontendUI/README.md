@@ -31,6 +31,7 @@ For the current testing task, authentication checks are bypassed and a fetch-bas
   - GET `/api/version-control?deviceId=...`
   - POST `/api/version-control`
   - POST `/api/auth/login` and `/api/auth/logout` (for UI flow)
+  - GET/POST/PUT/DELETE `/api/service-models` (Service Model Editor storage; in-memory mock)
 This is for testing only; remove or disable mocks and restore ProtectedRoute checks before production.
 
 ## Environment

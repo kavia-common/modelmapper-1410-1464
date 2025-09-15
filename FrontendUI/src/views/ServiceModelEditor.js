@@ -1,16 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { apiClient } from "../services/apiClient";
 
 /**
  * ServiceModelEditor
  * - Allows user to author or import a vendor-agnostic service model in JSON
  * - Validates and pretty-prints JSON
  * - Lists JSON properties and enables mapping each to one or more XML parameter names
- * - Persists to localStorage for demo/testing (no backend required)
+ * - Persists to backend via REST API (mocks available in test/demo)
  *
- * Backend integration notes:
- * - Replace localStorage reads/writes with API calls to your backend (e.g., GET/POST /api/service-models).
- * - Add endpoints to save service model JSON and mappings.
- * - For schema-level validation, backend can return validation results; see "validateAndFormat" usage.
+ * Backend integration details:
+ * - GET /api/service-models/:id -> fetch service model by ID
+ * - POST /api/service-models -> create new model { model, mappings }
+ * - PUT /api/service-models/:id -> update model { model, mappings }
+ * - DELETE /api/service-models/:id -> delete model by ID
+ * Environment:
+ * - Base URL is REACT_APP_API_BASE_URL; in demo mode, fetch is mocked.
  */
 
 // Helpers
@@ -49,60 +53,41 @@ function getAllJsonPaths(obj, prefix = "") {
   return Array.from(new Set(paths.filter(Boolean)));
 }
 
-const STORAGE_KEYS = {
-  jsonText: "mm_serviceModel_json",
-  mappings: "mm_serviceModel_mappings",
+const SAMPLE_MODEL = {
+  serviceId: "svc-001",
+  description: "L2VPN Service",
+  endpoints: [
+    {
+      id: "ep1",
+      device: "router-a",
+      interface: "GigabitEthernet0/0/0",
+    },
+    {
+      id: "ep2",
+      device: "router-b",
+      interface: "GigabitEthernet0/0/1",
+    },
+  ],
+  qos: {
+    policy: "gold",
+    bandwidthMbps: 1000,
+  },
 };
 
 export default function ServiceModelEditor() {
-  const [jsonText, setJsonText] = useState(() => {
-    // Load prior JSON from localStorage or start with a sample
-    const stored = localStorage.getItem(STORAGE_KEYS.jsonText);
-    if (stored) return stored;
-    const sample = {
-      serviceId: "svc-001",
-      description: "L2VPN Service",
-      endpoints: [
-        {
-          id: "ep1",
-          device: "router-a",
-          interface: "GigabitEthernet0/0/0",
-        },
-        {
-          id: "ep2",
-          device: "router-b",
-          interface: "GigabitEthernet0/0/1",
-        },
-      ],
-      qos: {
-        policy: "gold",
-        bandwidthMbps: 1000,
-      },
-    };
-    return JSON.stringify(sample, null, 2);
-  });
+  const [modelId, setModelId] = useState("svc-001");
+  const [jsonText, setJsonText] = useState(JSON.stringify(SAMPLE_MODEL, null, 2));
   const [parseError, setParseError] = useState("");
-  const [mappings, setMappings] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.mappings);
-    return stored ? JSON.parse(stored) : {};
-  });
+  const [mappings, setMappings] = useState({});
   const [xmlParamInput, setXmlParamInput] = useState({}); // temp inputs per key
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
 
   const parsed = useMemo(() => safeParseJson(jsonText), [jsonText]);
   const jsonPaths = useMemo(() => {
     if (!parsed.ok) return [];
     return getAllJsonPaths(parsed.value);
   }, [parsed]);
-
-  useEffect(() => {
-    // Persist JSON
-    localStorage.setItem(STORAGE_KEYS.jsonText, jsonText);
-  }, [jsonText]);
-
-  useEffect(() => {
-    // Persist mappings
-    localStorage.setItem(STORAGE_KEYS.mappings, JSON.stringify(mappings));
-  }, [mappings]);
 
   const validateAndFormat = () => {
     const res = safeParseJson(jsonText);
@@ -120,6 +105,67 @@ export default function ServiceModelEditor() {
     setMappings({});
     setXmlParamInput({});
     setParseError("");
+  };
+
+  const loadFromBackend = async () => {
+    if (!modelId) {
+      setStatus("Please enter a Model ID to load.");
+      return;
+    }
+    setBusy(true);
+    setStatus("Loading model...");
+    try {
+      const res = await apiClient.getServiceModel(modelId);
+      setJsonText(JSON.stringify(res.model || {}, null, 2));
+      setMappings(res.mappings || {});
+      setStatus(`Loaded model ${res.id}`);
+    } catch (e) {
+      setStatus(e.status === 404 ? "Model not found" : e.message || "Failed to load");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveToBackend = async () => {
+    // Replace previous placeholder with real API calls
+    if (!parsed.ok) {
+      setStatus("Fix JSON errors before saving.");
+      return;
+    }
+    setBusy(true);
+    setStatus(modelId ? "Saving (update)..." : "Saving (create)...");
+    try {
+      const payload = { model: parsed.value, mappings };
+      const res = await apiClient.saveServiceModel({ id: modelId || undefined, ...payload });
+      if (!modelId) setModelId(res.id);
+      setStatus(`Saved model ${res.id} at ${res.updatedAt}`);
+    } catch (e) {
+      setStatus(e.message || "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteFromBackend = async () => {
+    if (!modelId) {
+      setStatus("Enter a Model ID to delete.");
+      return;
+    }
+    if (!window.confirm(`Delete model ${modelId}?`)) return;
+    setBusy(true);
+    setStatus("Deleting...");
+    try {
+      await apiClient.deleteServiceModel(modelId);
+      setStatus(`Deleted model ${modelId}`);
+      // Reset editor to sample after delete
+      setJsonText(JSON.stringify(SAMPLE_MODEL, null, 2));
+      setMappings({});
+      setXmlParamInput({});
+    } catch (e) {
+      setStatus(e.message || "Delete failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleAddMapping = (path) => {
@@ -150,22 +196,39 @@ export default function ServiceModelEditor() {
     // setMappings({});
   };
 
-  const saveToBackend = async () => {
-    // BACKEND INTEGRATION PLACEHOLDER:
-    // Replace this with a POST to your backend with:
-    // { modelJson: parsed.value, mappings }
-    // e.g., await apiClient.saveServiceModel({ modelJson: parsed.value, mappings })
-    alert("Simulated save: In production, this will POST JSON + mappings to backend.");
-  };
-
   return (
     <div style={{ padding: 24 }}>
       <h2>Service Model Editor</h2>
 
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8, marginBottom: 8 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span>Model ID</span>
+          <input
+            placeholder="e.g., svc-001"
+            value={modelId}
+            onChange={(e) => setModelId(e.target.value)}
+          />
+        </label>
+        <button onClick={loadFromBackend} disabled={busy || !modelId}>
+          {busy ? "Loading..." : "Load"}
+        </button>
+        <button onClick={saveToBackend} disabled={busy}>
+          {busy ? "Saving..." : "Save"}
+        </button>
+        <button onClick={deleteFromBackend} disabled={busy || !modelId}>
+          {busy ? "Deleting..." : "Delete"}
+        </button>
+        {status && (
+          <div role="status" aria-live="polite" style={{ marginLeft: 8 }}>
+            {status}
+          </div>
+        )}
+      </div>
+
       <section aria-labelledby="json-editor-title" style={{ marginTop: 12 }}>
         <h3 id="json-editor-title">JSON Definition</h3>
         <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
-          <button onClick={validateAndFormat}>Validate & Format</button>
+          <button onClick={validateAndFormat} disabled={busy}>Validate & Format</button>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <span>Import JSON</span>
             <input
@@ -174,7 +237,7 @@ export default function ServiceModelEditor() {
               onChange={(e) => handleImportFile(e.target.files?.[0])}
             />
           </label>
-          <button onClick={clearAll} aria-label="Clear JSON and mappings">
+          <button onClick={clearAll} aria-label="Clear JSON and mappings" disabled={busy}>
             Clear
           </button>
           {!parsed.ok && (

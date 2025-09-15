@@ -4,12 +4,17 @@
 // requests at runtime and returns static example data for the app.
 //
 // The mocks cover:
-// - POST /api/map-service
-// - POST /api/connect-device
-// - GET /api/version-control?deviceId=..
-// - POST /api/version-control
-// - POST /api/auth/login (to allow LoginPage to work in demo)
-// - POST /api/auth/logout
+ // - POST /api/map-service
+ // - POST /api/connect-device
+ // - GET /api/version-control?deviceId=..
+ // - POST /api/version-control
+ // - POST /api/auth/login (to allow LoginPage to work in demo)
+ // - POST /api/auth/logout
+ // - Service Model storage (GET/POST/PUT/DELETE)
+ //   GET    /api/service-models/:id
+ //   POST   /api/service-models
+ //   PUT    /api/service-models/:id
+ //   DELETE /api/service-models/:id
 //
 // It includes interface and l2vpn yang model sample data, version history,
 // and simulated mapping responses.
@@ -66,15 +71,31 @@ export function enableApiMocks() {
     const method = (init.method || "GET").toUpperCase();
 
     // Normalize for cases where baseUrl may be present
-    const path = (() => {
+    const { pathOnly, searchPart } = (() => {
       try {
         const u = new URL(url, window.location.origin);
-        return u.pathname + (u.search || "");
+        return { pathOnly: u.pathname, searchPart: u.search || "" };
       } catch {
         // Fallback if URL constructor fails
-        return url || "";
+        return { pathOnly: url || "", searchPart: "" };
       }
     })();
+    const path = pathOnly + searchPart;
+
+    // Simple in-memory demo store for service models
+    window.__mmServiceModels = window.__mmServiceModels || {};
+    const svcStore = window.__mmServiceModels;
+
+    const svcMatch = (p) => {
+      // match /api/service-models or /api/service-models/:id
+      const base = "/api/service-models";
+      if (p === base) return { base: true, id: null };
+      if (p.startsWith(base + "/")) {
+        const id = decodeURIComponent(p.slice((base + "/").length));
+        return { base: false, id };
+      }
+      return null;
+    };
 
     // LOGIN (mock)
     if (path.startsWith("/api/auth/login") && method === "POST") {
@@ -156,6 +177,55 @@ export function enableApiMocks() {
         deviceId: body.deviceId || "device-unknown",
         history: MOCK_VERSION_HISTORY,
       });
+    }
+
+    // SERVICE MODEL STORAGE (mock CRUD)
+    const match = svcMatch(pathOnly);
+    if (match && method === "GET" && match.id) {
+      const found = svcStore[match.id];
+      if (!found) {
+        return new Response(JSON.stringify({ error: "NotFound", message: "Service model not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return makeJsonResponse(found);
+    }
+
+    if (match && method === "POST" && match.base) {
+      const body = parseBody(init.body);
+      const id = body?.id || `svc-${Math.random().toString(36).slice(2, 8)}`;
+      const now = new Date().toISOString();
+      const record = { id, model: body?.model || {}, mappings: body?.mappings || {}, updatedAt: now };
+      svcStore[id] = record;
+      return makeJsonResponse(record, { status: 201 });
+    }
+
+    if (match && method === "PUT" && match.id) {
+      const body = parseBody(init.body);
+      const exists = svcStore[match.id];
+      if (!exists) {
+        return new Response(JSON.stringify({ error: "NotFound", message: "Service model not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const now = new Date().toISOString();
+      const updated = { id: match.id, model: body?.model || {}, mappings: body?.mappings || {}, updatedAt: now };
+      svcStore[match.id] = updated;
+      return makeJsonResponse(updated);
+    }
+
+    if (match && method === "DELETE" && match.id) {
+      const exists = svcStore[match.id];
+      if (!exists) {
+        return new Response(JSON.stringify({ error: "NotFound", message: "Service model not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      delete svcStore[match.id];
+      return makeJsonResponse({ id: match.id, deleted: true });
     }
 
     // Fallback to real fetch for any other requests
