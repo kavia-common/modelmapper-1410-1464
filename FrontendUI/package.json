@@ -38,6 +38,8 @@
     "@testing-library/user-event": "^14.6.1",
     "cross-env": "^7.0.3",
     "cypress": "^13.12.0",
-    "jest-environment-jsdom": "^30.1.2"
+    "jest-environment-jsdom": "^30.1.2",
+    "babel-loader": "^8.2.5",
+    "@babel/core": "^7.23.0"
   }
 }
