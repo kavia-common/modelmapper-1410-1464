@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import useTheme from "../hooks/useTheme";
 
+// TEST-ONLY: Navbar shows primary links regardless of auth state to simplify navigation during auth bypass.
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useContext(AuthContext);
   const location = useLocation();
@@ -36,19 +37,17 @@ export default function Navbar() {
           ☰
         </button>
         <strong>ModelMapper</strong>
-        {isAuthenticated && (
-          <div
-            style={{
-              display: open ? "flex" : "none",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <Link to="/">Mapping Studio</Link>
-            <Link to="/connect">Connect Device</Link>
-            <Link to="/versions">Version Control</Link>
-          </div>
-        )}
+        <div
+          style={{
+            display: open ? "flex" : "none",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          <Link to="/">Mapping Studio</Link>
+          <Link to="/connect">Connect Device</Link>
+          <Link to="/versions">Version Control</Link>
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={toggleTheme} aria-label="Toggle Theme">

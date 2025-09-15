@@ -15,7 +15,11 @@ export const AuthContext = createContext({
 
 // PUBLIC_INTERFACE
 export function AuthProvider({ children }) {
-  /** Provides auth state and helpers to the app */
+  /** Provides auth state and helpers to the app.
+   * TEST-ONLY NOTE: Routes are configured to bypass authentication checks.
+   * This context remains functional to keep UI flows intact (e.g., LoginPage),
+   * but access to pages does not depend on these values while test mode is enabled.
+   */
   const [token, setToken] = useState(() => localStorage.getItem("mm_token"));
   const [user, setUser] = useState(() => {
     const u = localStorage.getItem("mm_user");

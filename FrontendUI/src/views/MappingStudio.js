@@ -29,7 +29,7 @@ export default function MappingStudio() {
       const res = await apiClient.mapService({ serviceId, vendor, yangModel });
       setStatus({
         type: "success",
-        message: `Mapping created. ID: ${res.mappingId}, status: ${res.status}`,
+        message: `Mapping created (simulated). ID: ${res.mappingId}, status: ${res.status}`,
       });
     } catch (e) {
       setStatus({ type: "error", message: e.message || "Mapping failed" });

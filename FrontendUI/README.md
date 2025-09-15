@@ -21,6 +21,18 @@ React-based visual design studio for mapping network services to vendor-specific
 - Run Cypress tests (UI): `npm run cypress:open`
 - Run Cypress in headless: `npm run cypress:run`
 
+### Test/Demo Mode (Auth Disabled + API Mocks Enabled)
+
+For the current testing task, authentication checks are bypassed and a fetch-based mock layer is enabled automatically at startup (see `src/mocks/browser.js`). 
+- All screens (Mapping Studio, Connect Device, Version Control) are accessible without login.
+- The following endpoints are mocked with realistic static data:
+  - POST `/api/map-service`
+  - POST `/api/connect-device`
+  - GET `/api/version-control?deviceId=...`
+  - POST `/api/version-control`
+  - POST `/api/auth/login` and `/api/auth/logout` (for UI flow)
+This is for testing only; remove or disable mocks and restore ProtectedRoute checks before production.
+
 ## Environment
 
 - REACT_APP_API_BASE_URL: Backend base URL (e.g., https://api.modelmapper.example.com)

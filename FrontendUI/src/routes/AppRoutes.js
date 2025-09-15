@@ -7,12 +7,11 @@ import VersionControlPage from "../views/VersionControlPage";
 import { AuthContext } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 
-function ProtectedRoute({ children, roles }) {
-  const { isAuthenticated, hasRole } = useContext(AuthContext);
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (roles && roles.length > 0 && !roles.some((r) => hasRole(r))) {
-    return <Navigate to="/unauthorized" replace />;
-  }
+// TEST-ONLY: Authentication is disabled below. ProtectedRoute bypasses all checks.
+// Do NOT ship this in production.
+function ProtectedRoute({ children /*, roles*/ }) {
+  // const { isAuthenticated, hasRole } = useContext(AuthContext);
+  // Bypass all authentication/role checks for testing:
   return children;
 }
 
