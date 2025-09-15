@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ModelMapper UI Layout Skeletons</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Note: This is a structure-only skeleton. No business logic or deep styling. -->
+  <style>
+    /* Minimal visual guidance for reviewing structure; replace with app styles later */
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; }
+    header, nav, main, aside, section, footer { padding: 16px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .visually-hidden { position: absolute; left: -9999px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .col { flex: 1 1 300px; }
+    form { display: grid; gap: 12px; }
+    fieldset { border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; }
+    legend { padding: 0 6px; }
+    .panel { border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge { border: 1px solid #e9ecef; border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { border-bottom: 1px solid #e9ecef; padding: 8px; text-align: left; }
+    .dropzone { border: 2px dashed #e9ecef; border-radius: 8px; min-height: 160px; padding: 12px; }
+    .list { list-style: none; padding: 0; margin: 0; }
+    .list li { border: 1px solid #e9ecef; border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <!-- Global navbar placeholder; in app this is a shared component -->
+  <header id="global-header" role="banner" aria-label="Application Header">
+    <div class="container row" style="justify-content: space-between; align-items: center;">
+      <div class="row" style="align-items: center;">
+        <button type="button" aria-label="Toggle Menu" id="btn-menu">☰</button>
+        <strong id="app-brand" aria-label="ModelMapper brand">ModelMapper</strong>
+        <nav id="primary-nav" aria-label="Primary">
+          <ul class="row list" style="margin-left: 16px;">
+            <li><a href="#screen-mapping-studio" aria-label="Go to Mapping Studio">Mapping Studio</a></li>
+            <li><a href="#screen-connect-device" aria-label="Go to Connect Device">Connect Device</a></li>
+            <li><a href="#screen-version-control" aria-label="Go to Version Control">Version Control</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="row" style="align-items: center;">
+        <button type="button" id="btn-theme-toggle" aria-label="Toggle Theme">🌙</button>
+        <span id="user-chip" aria-label="Current User">username (roles)</span>
+        <div class="actions">
+          <button type="button" id="btn-login" aria-label="Login">Login</button>
+          <button type="button" id="btn-logout" aria-label="Logout">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="screens" class="container" tabindex="-1">
+    <!-- 1) Login Screen -->
+    <section id="screen-login" aria-labelledby="login-title" role="region">
+      <header>
+        <h2 id="login-title">Login</h2>
+        <!-- Optional: unauthenticated navbar variant handled globally -->
+      </header>
+
+      <div class="row" style="justify-content: center;">
+        <article class="panel" style="max-width: 420px; width: 100%;" aria-label="Login Card">
+          <form id="login-form" aria-describedby="login-help login-feedback" role="form">
+            <fieldset>
+              <legend class="visually-hidden">Credentials</legend>
+              <label for="login-username">Username</label>
+              <input id="login-username" name="username" type="text" autocomplete="username" required aria-required="true" />
+
+              <label for="login-password">Password</label>
+              <input id="login-password" name="password" type="password" autocomplete="current-password" required aria-required="true" />
+            </fieldset>
+
+            <div class="actions">
+              <button id="login-submit" type="submit" aria-label="Submit Login">Login</button>
+            </div>
+
+            <p id="login-help" class="visually-hidden">Enter your username and password to sign in.</p>
+            <div id="login-feedback" role="status" aria-live="polite" aria-atomic="true">
+              <!-- Placeholder: success or error messages will appear here -->
+              <!-- Example: <div role="alert">Invalid credentials</div> -->
+            </div>
+
+            <nav aria-label="Login help links">
+              <ul class="list">
+                <li><a href="#" aria-label="Forgot password link">Forgot password?</a></li>
+                <li><a href="#" aria-label="Request access link">Need access?</a></li>
+              </ul>
+            </nav>
+          </form>
+        </article>
+      </div>
+      <!-- End Login -->
+    </section>
+
+    <!-- 2) Mapping Studio Screen -->
+    <section id="screen-mapping-studio" aria-labelledby="studio-title" role="region">
+      <header>
+        <h2 id="studio-title">Mapping Studio</h2>
+        <div class="row" role="group" aria-labelledby="studio-controls-title" aria-describedby="studio-controls-desc">
+          <span id="studio-controls-title" class="visually-hidden">Workspace Controls</span>
+          <p id="studio-controls-desc" class="visually-hidden">Select vendor and provide a service identifier.</p>
+
+          <div class="col">
+            <label for="studio-vendor">Vendor</label>
+            <select id="studio-vendor" aria-label="Vendor selector">
+              <option value="">Select vendor</option>
+              <option value="Cisco">Cisco</option>
+              <option value="Huawei">Huawei</option>
+              <option value="Nokia">Nokia</option>
+            </select>
+          </div>
+
+          <div class="col">
+            <label for="studio-service-id">Service ID</label>
+            <input id="studio-service-id" type="text" placeholder="Enter Service ID" aria-label="Service ID" />
+          </div>
+        </div>
+      </header>
+
+      <div class="row" role="application" aria-label="Mapping Workspace">
+        <!-- Left: Available Models -->
+        <aside id="studio-available" class="col panel" aria-labelledby="available-title">
+          <header class="row" style="align-items: center; justify-content: space-between;">
+            <h3 id="available-title">Available Models</h3>
+            <label for="models-filter" class="visually-hidden">Filter models</label>
+            <input id="models-filter" type="search" placeholder="Filter models..." aria-label="Filter models" />
+          </header>
+
+          <ul id="models-list" class="list" role="listbox" aria-label="Available YANG modules and submodules">
+            <!-- Placeholder items; in app this becomes a virtualized/filtered list -->
+            <li role="option" aria-selected="false" tabindex="0" draggable="true" data-kind="module">
+              cisco-ietf-interfaces
+            </li>
+            <li role="option" aria-selected="false" tabindex="0" draggable="true" data-kind="module">
+              cisco-ios-xr
+            </li>
+            <li role="option" aria-selected="false" tabindex="0" draggable="true" data-kind="submodule">
+              cisco-routing.submodule <span class="badge" aria-label="Submodule badge">submodule</span>
+            </li>
+          </ul>
+          <p id="models-hint">Hint: Press Enter to add focused item to mapping.</p>
+        </aside>
+
+        <!-- Right: Mapping Target -->
+        <section id="studio-target" class="col panel" aria-labelledby="target-title">
+          <header>
+            <h3 id="target-title">Mapping Target</h3>
+          </header>
+
+          <div id="target-dropzone"
+               class="dropzone"
+               role="region"
+               aria-label="Service mapping target"
+               aria-describedby="target-helper"
+               aria-dropeffect="copy">
+            <p id="target-helper">Drag items here or use keyboard actions from the list.</p>
+
+            <ul id="target-list" class="list" aria-live="polite" aria-relevant="additions removals">
+              <!-- Mapped items placeholder -->
+              <!-- Example Item:
+              <li>
+                <span>cisco-ietf-interfaces</span>
+                <button aria-label="Remove cisco-ietf-interfaces">✕</button>
+              </li>
+              -->
+              <li aria-disabled="true">Empty — drag items here</li>
+            </ul>
+          </div>
+
+          <footer class="actions" aria-label="Mapping Actions">
+            <button id="target-clear" type="button" aria-label="Clear mapping selection">Clear</button>
+            <button id="target-map" type="button" aria-label="Map service">Map Service</button>
+          </footer>
+
+          <div id="studio-feedback" role="status" aria-live="polite" aria-atomic="true">
+            <!-- Inline success/warn/error messages appear here -->
+          </div>
+        </section>
+      </div>
+      <!-- End Mapping Studio -->
+    </section>
+
+    <!-- 3) Connect Device Screen -->
+    <section id="screen-connect-device" aria-labelledby="connect-title" role="region">
+      <header>
+        <h2 id="connect-title">Connect Device</h2>
+      </header>
+
+      <article class="panel" aria-label="Connect Device Form">
+        <form id="connect-form" class="row" role="form" aria-describedby="connect-help connect-feedback">
+          <fieldset class="col">
+            <legend>Device Details</legend>
+
+            <label for="connect-device-ip">Device IP</label>
+            <input id="connect-device-ip" name="deviceIp" type="text" placeholder="10.0.0.1" required aria-required="true" />
+
+            <label for="connect-vendor">Vendor</label>
+            <select id="connect-vendor" name="vendor" aria-label="Vendor">
+              <option value="">Select vendor</option>
+              <option value="Cisco">Cisco</option>
+              <option value="Huawei">Huawei</option>
+              <option value="Nokia">Nokia</option>
+            </select>
+          </fieldset>
+
+          <fieldset class="col">
+            <legend>Credentials</legend>
+
+            <label for="connect-username">Username</label>
+            <input id="connect-username" name="username" type="text" required aria-required="true" autocomplete="username" />
+
+            <label for="connect-password">Password</label>
+            <input id="connect-password" name="password" type="password" required aria-required="true" autocomplete="current-password" />
+          </fieldset>
+
+          <div class="col" style="align-self: end;">
+            <div class="actions">
+              <button id="connect-submit" type="submit" aria-label="Connect to device">Connect</button>
+            </div>
+            <p id="connect-help" class="visually-hidden">Provide device connection info and submit to retrieve models.</p>
+            <div id="connect-feedback" role="status" aria-live="polite" aria-atomic="true">
+              <!-- Loading / error messages placeholder -->
+              <!-- Example: <div role="alert">Connection failed</div> -->
+            </div>
+          </div>
+        </form>
+      </article>
+
+      <section id="connect-results" aria-labelledby="connect-results-title">
+        <h3 id="connect-results-title">Device Status</h3>
+        <p>Connected: <strong data-slot="connected-flag">No</strong></p>
+        <p data-slot="connect-message">Message: —</p>
+
+        <h4 id="retrieved-models-title">Retrieved YANG Models</h4>
+        <div class="panel" role="region" aria-labelledby="retrieved-models-title">
+          <label for="models-search" class="visually-hidden">Search retrieved models</label>
+          <input id="models-search" type="search" placeholder="Search models…" aria-label="Search retrieved models" />
+          <ul id="retrieved-models" class="list" aria-label="Retrieved YANG Models">
+            <!-- Populated with models after connection -->
+            <!-- Example: <li>cisco-ios-xr</li> -->
+            <li aria-disabled="true">No models loaded</li>
+          </ul>
+        </div>
+
+        <div class="actions" aria-label="Follow-up actions">
+          <!-- Future CTA slot -->
+          <button type="button" id="use-in-mapping" aria-disabled="true">Use in Mapping Studio</button>
+        </div>
+      </section>
+      <!-- End Connect Device -->
+    </section>
+
+    <!-- 4) Version Control Screen -->
+    <section id="screen-version-control" aria-labelledby="versions-title" role="region">
+      <header>
+        <h2 id="versions-title">Version Control</h2>
+        <div class="row" role="group" aria-label="Version Control Filters and Actions" aria-describedby="versions-controls-desc">
+          <p id="versions-controls-desc" class="visually-hidden">Set device ID and use actions to load or manage versions.</p>
+
+          <label for="versions-device-id">Device ID</label>
+          <input id="versions-device-id" type="text" placeholder="device-123" />
+
+          <div class="actions">
+            <button id="versions-load" type="button" aria-label="Load version history">Load History</button>
+            <button id="versions-manage" type="button" aria-label="Open manage actions">Manage</button>
+          </div>
+
+          <div id="versions-status" role="status" aria-live="polite" aria-atomic="true">
+            <!-- Inline status feedback -->
+          </div>
+        </div>
+      </header>
+
+      <section aria-labelledby="versions-content-title">
+        <h3 id="versions-content-title" class="visually-hidden">Version History Content</h3>
+
+        <article id="versions-empty" class="panel" aria-label="No history placeholder">
+          <p>No history</p>
+        </article>
+
+        <div id="versions-table-wrapper" class="panel" role="region" aria-labelledby="versions-table-title" hidden>
+          <h4 id="versions-table-title">History</h4>
+          <table class="table" aria-describedby="versions-table-hint">
+            <caption id="versions-table-hint" class="visually-hidden">List of available versions with actions.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Version</th>
+                <th scope="col">Timestamp</th>
+                <th scope="col">User</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="versions-table-body">
+              <!-- Example row
+              <tr>
+                <td>v1.2.3</td>
+                <td>2025-01-01T10:00:00Z</td>
+                <td>admin</td>
+                <td><button aria-label="Revert to version v1.2.3">Revert</button></td>
+              </tr>
+              -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile card list alternative -->
+        <div id="versions-card-list" role="list" aria-label="Version History (mobile)" hidden>
+          <!-- Example card
+          <article role="listitem" class="panel">
+            <header><strong>v1.2.3</strong></header>
+            <p><span>Timestamp:</span> 2025-01-01T10:00:00Z</p>
+            <p><span>User:</span> admin</p>
+            <div class="actions">
+              <button aria-label="Revert to version v1.2.3">Revert</button>
+            </div>
+          </article>
+          -->
+        </div>
+      </section>
+
+      <!-- Confirm Revert Modal (structure-only) -->
+      <section id="modal-revert" role="dialog" aria-modal="true" aria-labelledby="modal-revert-title" aria-describedby="modal-revert-desc" hidden>
+        <article class="panel" style="max-width: 520px; margin: 10vh auto;">
+          <header>
+            <h4 id="modal-revert-title">Revert to version X?</h4>
+          </header>
+          <p id="modal-revert-desc">Reverting will replace the current device model with the selected version.</p>
+          <div class="actions">
+            <button id="confirm-revert" type="button" aria-label="Confirm revert">Confirm Revert</button>
+            <button id="cancel-revert" type="button" aria-label="Cancel revert">Cancel</button>
+          </div>
+        </article>
+      </section>
+      <!-- End Version Control -->
+    </section>
+
+    <!-- 5) Unauthorized (auxiliary) -->
+    <section id="screen-unauthorized" aria-labelledby="unauth-title" role="region">
+      <header>
+        <h2 id="unauth-title">Unauthorized</h2>
+      </header>
+      <p>You do not have permission to view this page.</p>
+      <p><a href="#screen-login" aria-label="Back to login link">Back to login</a></p>
+    </section>
+  </main>
+
+  <footer id="global-footer" role="contentinfo" aria-label="Application Footer">
+    <div class="container">
+      <small>&copy; <span data-slot="year">2025</span> ModelMapper</small>
+    </div>
+  </footer>
+</body>
+</html>
